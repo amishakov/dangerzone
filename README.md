@@ -8,13 +8,13 @@ Take potentially dangerous PDFs, office documents, or images and convert them to
 
 Dangerzone works like this: You give it a document that you don't know if you can trust (for example, an email attachment). Inside of a sandbox, Dangerzone converts the document to a PDF (if it isn't already one), and then converts the PDF into raw pixel data: a huge list of RGB color values for each page. Then, in a separate sandbox, Dangerzone takes this pixel data and converts it back into a PDF.
 
-_Read more about Dangerzone in the [official site](https://dangerzone.rocks/about.html)._
+_Read more about Dangerzone in the [official site](https://dangerzone.rocks/about/)._
 
 ## Getting started
 
 ### MacOS
-- Download [Dangerzone 0.7.0 for Mac (Apple Silicon CPU)](https://github.com/freedomofpress/dangerzone/releases/download/v0.7.0/Dangerzone-0.7.0-arm64.dmg)
-- Download [Dangerzone 0.7.0 for Mac (Intel CPU)](https://github.com/freedomofpress/dangerzone/releases/download/v0.7.0/Dangerzone-0.7.0-i686.dmg)
+- Download [Dangerzone 0.7.1 for Mac (Apple Silicon CPU)](https://github.com/freedomofpress/dangerzone/releases/download/v0.7.1/Dangerzone-0.7.1-arm64.dmg)
+- Download [Dangerzone 0.7.1 for Mac (Intel CPU)](https://github.com/freedomofpress/dangerzone/releases/download/v0.7.1/Dangerzone-0.7.1-i686.dmg)
 
 You can also install Dangerzone for Mac using [Homebrew](https://brew.sh/): `brew install --cask dangerzone`
 
@@ -24,7 +24,7 @@ You can also install Dangerzone for Mac using [Homebrew](https://brew.sh/): `bre
 
 ### Windows
 
-- Download [Dangerzone 0.7.0 for Windows](https://github.com/freedomofpress/dangerzone/releases/download/v0.7.0/Dangerzone-0.7.0.msi)
+- Download [Dangerzone 0.7.1 for Windows](https://github.com/freedomofpress/dangerzone/releases/download/v0.7.1/Dangerzone-0.7.1.msi)
 
 > **Note**: you will also need to install [Docker Desktop](https://www.docker.com/products/docker-desktop/).
 > This program needs to run alongside Dangerzone at all times, since it is what allows Dangerzone to

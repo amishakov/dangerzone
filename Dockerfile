@@ -49,10 +49,10 @@ RUN mkdir /usr/share/tessdata/ && mkdir tessdata && cd tessdata \
 ###########################################
 # Download H2ORestart
 FROM alpine:latest as h2orestart-dl
-ARG H2ORESTART_CHECKSUM=5db816a1e57b510456633f55e693cb5ef3675ef8b35df4f31c90ab9d4c66071a
+ARG H2ORESTART_CHECKSUM=d09bc5c93fe2483a7e4a57985d2a8d0e4efae2efb04375fe4b59a68afd7241e2
 RUN mkdir /libreoffice_ext && cd libreoffice_ext \
     && H2ORESTART_FILENAME=h2orestart.oxt \
-    && H2ORESTART_VERSION="v0.5.7" \
+    && H2ORESTART_VERSION="v0.6.6" \
     && wget https://github.com/ebandal/H2Orestart/releases/download/$H2ORESTART_VERSION/$H2ORESTART_FILENAME \
     && echo "$H2ORESTART_CHECKSUM  $H2ORESTART_FILENAME" | sha256sum -c \
     && install -dm777 "/usr/lib/libreoffice/share/extensions/"
@@ -100,7 +100,9 @@ FROM alpine:latest
 RUN apk --no-cache -U upgrade && \
     apk --no-cache add python3
 
-RUN GVISOR_URL="https://storage.googleapis.com/gvisor/releases/release/latest/$(uname -m)"; \
+# Temporarily pin gVisor to the latest working version (release-20240826.0).
+# See: https://github.com/freedomofpress/dangerzone/issues/928
+RUN GVISOR_URL="https://storage.googleapis.com/gvisor/releases/release/20240826/$(uname -m)"; \
     wget "${GVISOR_URL}/runsc" "${GVISOR_URL}/runsc.sha512" && \
     sha512sum -c runsc.sha512 && \
     rm -f runsc.sha512 && \

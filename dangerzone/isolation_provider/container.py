@@ -13,7 +13,12 @@ from ..conversion import errors
 from ..document import Document
 from ..util import get_tmp_dir  # NOQA : required for mocking in our tests.
 from ..util import get_resource_path, get_subprocess_startupinfo
-from .base import PIXELS_TO_PDF_LOG_END, PIXELS_TO_PDF_LOG_START, IsolationProvider
+from .base import (
+    PIXELS_TO_PDF_LOG_END,
+    PIXELS_TO_PDF_LOG_START,
+    IsolationProvider,
+    terminate_process_group,
+)
 
 TIMEOUT_KILL = 5  # Timeout in seconds until the kill command returns.
 
@@ -109,38 +114,30 @@ class Container(IsolationProvider):
         * Set the `container_engine_t` SELinux label, which allows gVisor to work on
           SELinux-enforcing systems
           (see https://github.com/freedomofpress/dangerzone/issues/880).
+        * Set a custom seccomp policy for every container engine, since the `ptrace(2)`
+          system call is forbidden by some.
 
         For Podman specifically, where applicable, we also add the following:
         * Do not log the container's output.
-        * Use a newer seccomp policy (for Podman 3.x versions only).
         * Do not map the host user to the container, with `--userns nomap` (available
           from Podman 4.1 onwards)
           - This particular argument is specified in `start_doc_to_pixels_proc()`, but
             should move here once #748 is merged.
         """
-        # This file has been copied as is [1] from the official Podman repo. See:
-        #
-        # [1] https://github.com/containers/common/blob/d3283f8401eeeb21f3c59a425b5461f069e199a7/pkg/seccomp/seccomp.json
-        seccomp_json_path = get_resource_path("seccomp.gvisor.json")
-        custom_seccomp_policy_arg = ["--security-opt", f"seccomp={seccomp_json_path}"]
         if Container.get_runtime_name() == "podman":
             security_args = ["--log-driver", "none"]
             security_args += ["--security-opt", "no-new-privileges"]
-
-            # NOTE: Ubuntu Focal/Jammy have Podman version 3, and their seccomp policy
-            # does not include the `ptrace()` syscall. This system call is required for
-            # running gVisor, so we enforce a newer seccomp policy file in that case.
-            #
-            # See also https://github.com/freedomofpress/dangerzone/issues/846
-            if Container.get_runtime_version() < (4, 0):
-                security_args += custom_seccomp_policy_arg
         else:
             security_args = ["--security-opt=no-new-privileges:true"]
-            # Older Docker Desktop versions may have a seccomp policy that does not
-            # allow `ptrace(2)`. In these cases, we specify our own. See:
-            # https://github.com/freedomofpress/dangerzone/issues/846
-            if Container.get_runtime_version() < (25, 0):
-                security_args += custom_seccomp_policy_arg
+
+        # We specify a custom seccomp policy uniformly, because on certain container
+        # engines the default policy might not allow the `ptrace(2)` syscall [1]. Our
+        # custom seccomp policy has been copied as is [2] from the official Podman repo.
+        #
+        # [1] https://github.com/freedomofpress/dangerzone/issues/846
+        # [2] https://github.com/containers/common/blob/d3283f8401eeeb21f3c59a425b5461f069e199a7/pkg/seccomp/seccomp.json
+        seccomp_json_path = get_resource_path("seccomp.gvisor.json")
+        security_args += ["--security-opt", f"seccomp={seccomp_json_path}"]
 
         security_args += ["--cap-drop", "all"]
         security_args += ["--cap-add", "SYS_CHROOT"]
@@ -194,7 +191,7 @@ class Container(IsolationProvider):
         """
         # Get the image id
         with open(get_resource_path("image-id.txt")) as f:
-            expected_image_id = f.read().strip()
+            expected_image_ids = f.read().strip().split()
 
         # See if this image is already installed
         installed = False
@@ -212,7 +209,7 @@ class Container(IsolationProvider):
         )
         found_image_id = found_image_id.strip()
 
-        if found_image_id == expected_image_id:
+        if found_image_id in expected_image_ids:
             installed = True
         elif found_image_id == "":
             pass
@@ -242,7 +239,7 @@ class Container(IsolationProvider):
         # `int`.
         #
         # See https://stackoverflow.com/a/37888668
-        if not type(val) == _type:
+        if type(val) is not _type:
             raise ValueError("Status field has incorrect type")
 
     def parse_progress_trusted(self, document: Document, line: str) -> None:
@@ -275,6 +272,9 @@ class Container(IsolationProvider):
             stdout=subprocess.PIPE,
             stderr=self.proc_stderr,
             startupinfo=startupinfo,
+            # Start the conversion process in a new session, so that we can later on
+            # kill the process group, without killing the controlling script.
+            start_new_session=True,
         )
 
     def exec_container(
@@ -441,7 +441,7 @@ class Container(IsolationProvider):
         #
         # See also https://github.com/freedomofpress/dangerzone/issues/791
         self.kill_container(self.doc_to_pixels_container_name(document))
-        p.terminate()
+        terminate_process_group(p)
 
     def ensure_stop_doc_to_pixels_proc(  # type: ignore [no-untyped-def]
         self, document: Document, *args, **kwargs
